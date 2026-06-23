@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.services.file_parser import parse_and_clean
+from app.services.column_detector import detect_columns, clean_header_rows
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -69,5 +70,25 @@ async def upload_file(
 
     # --- Parse & clean ---
     result = parse_and_clean(file_bytes, file.filename)
+
+    # --- Column role detection ---
+    # Re-build a lightweight DataFrame from the parsed sample to run detection.
+    # We use the full file bytes again so the detector sees all rows for
+    # cardinality checks, not just the 5-row sample.
+    import io, pandas as pd
+    try:
+        ext_lower = file.filename.rsplit(".", 1)[-1].lower()
+        if ext_lower == "csv":
+            try:
+                df_full = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8")
+            except UnicodeDecodeError:
+                df_full = pd.read_csv(io.BytesIO(file_bytes), encoding="latin-1")
+        else:
+            df_full = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+
+        df_full = clean_header_rows(df_full)
+        result["column_roles"] = detect_columns(df_full)
+    except Exception:
+        result["column_roles"] = None   # graceful degradation — never block upload
 
     return result
