@@ -1,8 +1,14 @@
+"""
+Legacy auth service — kept for backward compatibility with existing tests.
+New code should call the auth router directly via FastAPI dependency injection.
+"""
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.user import User
 from app.schemas.user import UserCreate, LoginRequest, TokenResponse
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
+from app.core.config import settings
 
 
 def register_user(db: Session, payload: UserCreate) -> User:
@@ -10,10 +16,10 @@ def register_user(db: Session, payload: UserCreate) -> User:
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     user = User(
-        email=payload.email,
-        full_name=payload.full_name,
-        hashed_password=hash_password(payload.password),
-        role=payload.role,
+        email           = payload.email,
+        full_name       = payload.full_name,
+        hashed_password = hash_password(payload.password),
+        role            = payload.role,
     )
     db.add(user)
     db.commit()
@@ -28,7 +34,10 @@ def login_user(db: Session, payload: LoginRequest) -> TokenResponse:
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
     token_data = {"sub": str(user.id), "role": user.role.value}
+    access_token,  _ = create_access_token(token_data)
+    refresh_token, _ = create_refresh_token(token_data)
     return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
+        access_token  = access_token,
+        refresh_token = refresh_token,
+        expires_in    = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )

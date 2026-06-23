@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import auth, health, upload, dashboard
 from app.db.session import engine, Base
+# Import all models so SQLAlchemy's create_all sees them
+from app.models import user, token_blacklist  # noqa: F401
 
 Base.metadata.create_all(bind=engine)
 
