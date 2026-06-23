@@ -1,0 +1,52 @@
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────
+  - type: web
+    name: saas-sales-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: saas-sales-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true        # Render auto-generates a secure random value
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 1440
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: FRONTEND_URL
+        value: https://saas-sales-ui.onrender.com   # update after frontend deploys
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+
+  # ── React Frontend (Static Site) ─────────────────────────────────────────
+  - type: web
+    name: saas-sales-ui
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      # Send all routes to index.html so React Router works correctly
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://saas-sales-api.onrender.com/api/v1
+
+databases:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  - name: saas-sales-db
+    databaseName: saas_sales_db
+    user: saas_user
+    plan: free       # free for 90 days, then $7/month

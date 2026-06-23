@@ -7,8 +7,12 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
+// In development: Vite proxy rewrites /api/v1 → http://localhost:8000/api/v1
+// In production:  VITE_API_URL is set to the Render backend URL at build time
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
 })
